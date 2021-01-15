@@ -790,7 +790,55 @@ static NSDictionary* customCertificatesForHost;
             }
         }
     }
-    completionHandler(NSURLSessionAuthChallengePerformDefaultHandling, nil);
+	
+	if ([[[challenge protectionSpace] authenticationMethod] isEqualToString:NSURLAuthenticationMethodServerTrust]){
+
+        SecTrustRef secTrustRef = challenge.protectionSpace.serverTrust;
+        if (secTrustRef != NULL) {
+            SecTrustResultType result;
+            OSErr error = SecTrustEvaluate(secTrustRef, &result);
+            if (error != noErr) {
+                completionHandler(NSURLSessionAuthChallengeRejectProtectionSpace, nil);
+                return;
+            }
+            if (result == kSecTrustResultRecoverableTrustFailure) {
+                
+				// SslError
+                CFArrayRef secTrustProperties = SecTrustCopyProperties(secTrustRef);
+                NSArray *arr = CFBridgingRelease(secTrustProperties);
+                NSMutableString *errorStr = [NSMutableString string];
+                for (int i=0; i<arr.count; i++) {
+                    NSDictionary *dic = [arr objectAtIndex:i];
+                    if (i != 0 ) [errorStr appendString:@" "];
+                    [errorStr appendString:(NSString*)dic[@"value"]];
+                }
+
+                UIAlertController *alertController = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"sslErrorTitle", nil) message:NSLocalizedString(@"sslErrorMsg", nil) preferredStyle:UIAlertControllerStyleAlert];
+				
+                // back
+				[alertController addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"back", nil) style:UIAlertActionStyleCancel handler:^(UIAlertAction *action) {
+					completionHandler(NSURLSessionAuthChallengeCancelAuthenticationChallenge, nil);
+				}]];
+				
+                // continue
+                [alertController addAction:[UIAlertAction actionWithTitle:NSLocalizedString(@"continue", nil) style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+                    NSURLCredential* credential = [NSURLCredential credentialForTrust:secTrustRef];
+                    completionHandler(NSURLSessionAuthChallengeUseCredential, credential);
+
+                }]];
+
+                dispatch_async(dispatch_get_main_queue(), ^{
+					[[self topViewController] presentViewController:alertController animated:YES completion:^{}];
+                });
+                return;
+            }
+            NSURLCredential* credential = [NSURLCredential credentialForTrust:secTrustRef];
+            completionHandler(NSURLSessionAuthChallengeUseCredential, credential);
+            return;
+        }
+        completionHandler(NSURLSessionAuthChallengeRejectProtectionSpace, nil);
+    }
+	completionHandler(NSURLSessionAuthChallengePerformDefaultHandling, nil);
 }
 
 #pragma mark - WKNavigationDelegate methods
@@ -1155,7 +1203,7 @@ static NSDictionary* customCertificatesForHost;
 - (void)setPullToRefreshEnabled:(BOOL)pullToRefreshEnabled
 {
     _pullToRefreshEnabled = pullToRefreshEnabled;
-
+    
     if (pullToRefreshEnabled) {
         [self addPullToRefreshControl];
     } else {
@@ -1356,7 +1404,7 @@ static NSDictionary* customCertificatesForHost;
   if (_sharedCookiesEnabled) {
     if (@available(iOS 11.0, *)) {
       // see WKWebView initialization for added cookies
-    } else if (request != nil) {
+    } else {
       NSArray *cookies = [[NSHTTPCookieStorage sharedHTTPCookieStorage] cookiesForURL:request.URL];
       NSDictionary<NSString *, NSString *> *cookieHeader = [NSHTTPCookie requestHeaderFieldsWithCookies:cookies];
       NSMutableURLRequest *mutableRequest = [request mutableCopy];
