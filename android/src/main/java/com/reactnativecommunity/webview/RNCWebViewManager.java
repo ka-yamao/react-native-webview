@@ -925,12 +925,62 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
 
         description = descriptionPrefix + description;
 
-        this.onReceivedError(
-          webView,
-          code,
-          description,
-          failingUrl
-        );
+      // ssl error dialog
+      String[] text = getDialogText();
+      new AlertDialog.Builder(reactContext)
+        .setTitle(text[0])
+        .setMessage(text[1])
+        .setNegativeButton(text[2], (dialog, which) -> handler.cancel())
+        .setPositiveButton(text[3], (dialog, which) -> handler.proceed())
+        .setCancelable(false)
+        .show();
+
+//       this.onReceivedError(
+//          webView,
+//          code,
+//          description,
+//          failingUrl
+//        );
+    }
+
+    /**
+     * ssl error msg
+     * @return String[]
+     */
+    public String[] getDialogText() {
+      String[] text = new String[4];
+
+      // locale
+      Locale locale = Locale.getDefault();
+      String language = locale.getLanguage();
+      String country = locale.getCountry();
+
+      if ((language.equals("zh")) && (country.equals("CN"))) {
+        // Simplified characters
+        text[0] = "您与即将前往的网站连结并不安全";
+        text[1] = "请勿在您要前往的网站上输入任何敏感信息（例如，密码或信用卡信息），因为攻击者可能会盗取这些信息。";
+        text[2] = "取消";
+        text[3] = "前往";
+      } else if ((language.equals("zh")) && ((country.equals("TW")) || (country.equals("HK")))) {
+        // Traditional Chinese
+        text[0] = "您與即將前往的網站連線並不安全";
+        text[1] = "請勿在您要前往的網站上輸入任何機密資訊（例如，密碼或信用卡號碼），以免遭到攻擊者竊取。";
+        text[2] = "取消";
+        text[3] = "前往";
+      } else if ((language.equals("ko")) && country.equals("KR")) {
+        // Korean
+        text[0] = "이동 후 사이트에서 접속이 끊길 수 있습니다.";
+        text[1] = "이동 후 사이트에서는 보안정보(패스워드, 신용카드 번호 등)를 입력하지 말아 주세요. 정보가 도용될 우려가 있습니다";
+        text[2] = "취소";
+        text[3] = "이동하기";
+      } else {
+        // English
+        text[0] = "Your connection to the site you are proceeding to is not secure";
+        text[1] = "You should not enter any sensitive information on the site you are proceeding to (for example, passwords or credit card numbers), because it could be stolen by attackers.";
+        text[2] = "Back";
+        text[3] = "Continue";
+      }
+      return text;
     }
 
     @Override
