@@ -887,7 +887,7 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
         // Cancel request after obtaining top-level URL.
         // If request is cancelled before obtaining top-level URL, undesired behavior may occur.
         // Undesired behavior: Return value of WebView.getUrl() may be the current URL instead of the failing URL.
-        handler.cancel();
+        // handler.cancel();
 
         if (!topWindowUrl.equalsIgnoreCase(failingUrl)) {
           // If error is not due to top-level navigation, then do not call onReceivedError()
@@ -937,12 +937,12 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
         .setCancelable(false)
         .show();
 
-//       this.onReceivedError(
-//          webView,
-//          code,
-//          description,
-//          failingUrl
-//        );
+       this.onReceivedError(
+          webView,
+          code,
+          description,
+          failingUrl
+        );
     }
 
     /**

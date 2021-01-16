@@ -789,9 +789,7 @@ static NSDictionary* customCertificatesForHost;
                 }
             }
         }
-    }
-	
-	if ([[[challenge protectionSpace] authenticationMethod] isEqualToString:NSURLAuthenticationMethodServerTrust]){
+    } else if ([[[challenge protectionSpace] authenticationMethod] isEqualToString:NSURLAuthenticationMethodServerTrust]){
 
         SecTrustRef secTrustRef = challenge.protectionSpace.serverTrust;
         if (secTrustRef != NULL) {
@@ -812,6 +810,11 @@ static NSDictionary* customCertificatesForHost;
                     if (i != 0 ) [errorStr appendString:@" "];
                     [errorStr appendString:(NSString*)dic[@"value"]];
                 }
+                
+//                NSURLSessionAuthChallengeUseCredential
+//                NSURLSessionAuthChallengePerformDefaultHandling
+//                NSURLSessionAuthChallengeCancelAuthenticationChallenge
+//                NSURLSessionAuthChallengeRejectProtectionSpace
 
                 UIAlertController *alertController = [UIAlertController alertControllerWithTitle:NSLocalizedString(@"sslErrorTitle", nil) message:NSLocalizedString(@"sslErrorMsg", nil) preferredStyle:UIAlertControllerStyleAlert];
 				
@@ -827,9 +830,25 @@ static NSDictionary* customCertificatesForHost;
 
                 }]];
 
+                
+                
                 dispatch_async(dispatch_get_main_queue(), ^{
-					[[self topViewController] presentViewController:alertController animated:YES completion:^{}];
+                    // if ([self topViewController].presentingViewController == nil) {
+                        [[self topViewController] presentViewController:alertController animated:YES completion:nil];
+                    // }
                 });
+            
+                NSMutableDictionary<NSString *, id> *event = [self baseEvent];
+                [event addEntriesFromDictionary:@{
+                  @"didFailProvisionalNavigation": @YES,
+                  @"domain": webView.URL.host,
+                  @"code": @(-2000),
+                  @"description": @"ssl error",
+                }];
+                _onLoadingError(event);
+                return;
+            } else if (result == kSecTrustResultInvalid || result == kSecTrustResultDeny || result == kSecTrustResultFatalTrustFailure) {
+                completionHandler(NSURLSessionAuthChallengeRejectProtectionSpace, nil);
                 return;
             }
             NSURLCredential* credential = [NSURLCredential credentialForTrust:secTrustRef];
