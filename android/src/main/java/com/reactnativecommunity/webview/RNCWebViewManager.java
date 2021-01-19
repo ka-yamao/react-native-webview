@@ -1120,7 +1120,7 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
       View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
 
     protected ReactContext mReactContext;
-    protected View mWebView;
+    protected WebView mWebView;
 
     protected View mVideoView;
     protected WebChromeClient.CustomViewCallback mCustomViewCallback;
@@ -1135,7 +1135,23 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
     @Override
     public boolean onCreateWindow(WebView view, boolean isDialog, boolean isUserGesture, Message resultMsg) {
 
+//      Message href = view.getHandler().obtainMessage();
+//      view.requestFocusNodeHref(href);
+//      String url = href.getData().getString("url");
+
       final WebView newWebView = new WebView(view.getContext());
+      newWebView.setWebViewClient(new WebViewClient(){
+        @Override
+        public void onPageStarted(WebView view, String url, Bitmap favicon) {
+          // WebView load
+          mWebView.loadUrl(url);
+          newWebView.stopLoading();
+          newWebView.setWebViewClient(null);
+          newWebView.setWebChromeClient(null);
+          newWebView.destroy();
+
+        }
+      });
       final WebView.WebViewTransport transport = (WebView.WebViewTransport) resultMsg.obj;
       transport.setWebView(newWebView);
       resultMsg.sendToTarget();
