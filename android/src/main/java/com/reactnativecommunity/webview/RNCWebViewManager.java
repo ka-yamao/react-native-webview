@@ -6,6 +6,7 @@ import android.annotation.TargetApi;
 import android.app.AlertDialog;
 import android.app.DownloadManager;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
@@ -317,12 +318,12 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
   public void setLayerType(WebView view, String layerTypeString) {
     int layerType = View.LAYER_TYPE_NONE;
     switch (layerTypeString) {
-        case "hardware":
-          layerType = View.LAYER_TYPE_HARDWARE;
-          break;
-        case "software":
-          layerType = View.LAYER_TYPE_SOFTWARE;
-          break;
+      case "hardware":
+        layerType = View.LAYER_TYPE_HARDWARE;
+        break;
+      case "software":
+        layerType = View.LAYER_TYPE_SOFTWARE;
+        break;
     }
     view.setLayerType(layerType, null);
   }
@@ -798,9 +799,9 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
       if (!mLastLoadFailed) {
         RNCWebView reactWebView = (RNCWebView) webView;
 
-        reactWebView.callInjectedJavaScript();
+        // reactWebView.callInjectedJavaScript();
 
-        emitFinishEvent(webView, url);
+        // emitFinishEvent(webView, url);
       }
     }
 
@@ -808,6 +809,24 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
     public void onPageStarted(WebView webView, String url, Bitmap favicon) {
       super.onPageStarted(webView, url, favicon);
       mLastLoadFailed = false;
+
+
+      String host = Uri.parse(url).getHost();
+      if (host.equals("www.agoda.com")) {
+        // This is my web site, so do not override; let my WebView load
+        // the page
+//        if(webViewPop!=null) {
+//          ViewGroup s = (ViewGroup) ((ReactContext) webView.getContext()).getCurrentActivity().findViewById(android.R.id.content);
+//          webViewPop.setVisibility(View.GONE);
+//          s.removeView(webViewPop);
+//          webViewPop=null;
+//        }
+        if(builder != null) {
+          builder.hide();
+          builder = null;
+        }
+
+      }
 
       RNCWebView reactWebView = (RNCWebView) webView;
       reactWebView.callInjectedJavaScriptBeforeContentLoaded();
@@ -823,6 +842,28 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
     public boolean shouldOverrideUrlLoading(WebView view, String url) {
       final RNCWebView rncWebView = (RNCWebView) view;
       final boolean isJsDebugging = ((ReactContext) view.getContext()).getJavaScriptContextHolder().get() == 0;
+
+
+      String host = Uri.parse(url).getHost();
+      if (host.equals("www.agoda.com") || host.equals("www.expedia.com")) {
+        // This is my web site, so do not override; let my WebView load
+        // the page
+
+//        if(webViewPop!=null) {
+//          ViewGroup s = (ViewGroup) ((ReactContext) view.getContext()).getCurrentActivity().findViewById(android.R.id.content);
+//          webViewPop.setVisibility(View.GONE);
+//          s.removeView(webViewPop);
+//          webViewPop=null;
+//        }
+        if(builder != null) {
+          builder.hide();
+          builder = null;
+        }
+        return false;
+      }
+      if (host.equals("m.facebook.com")) {
+        return false;
+      }
 
       if (!isJsDebugging && rncWebView.mCatalystInstance != null) {
         final Pair<Integer, AtomicReference<ShouldOverrideCallbackState>> lock = RNCWebViewModule.shouldOverrideUrlLoadingLock.getNewLock();
@@ -877,54 +918,54 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
 
     @Override
     public void onReceivedSslError(final WebView webView, final SslErrorHandler handler, final SslError error) {
-        // onReceivedSslError is called for most requests, per Android docs: https://developer.android.com/reference/android/webkit/WebViewClient#onReceivedSslError(android.webkit.WebView,%2520android.webkit.SslErrorHandler,%2520android.net.http.SslError)
-        // WebView.getUrl() will return the top-level window URL.
-        // If a top-level navigation triggers this error handler, the top-level URL will be the failing URL (not the URL of the currently-rendered page).
-        // This is desired behavior. We later use these values to determine whether the request is a top-level navigation or a subresource request.
-        String topWindowUrl = webView.getUrl();
-        String failingUrl = error.getUrl();
+      // onReceivedSslError is called for most requests, per Android docs: https://developer.android.com/reference/android/webkit/WebViewClient#onReceivedSslError(android.webkit.WebView,%2520android.webkit.SslErrorHandler,%2520android.net.http.SslError)
+      // WebView.getUrl() will return the top-level window URL.
+      // If a top-level navigation triggers this error handler, the top-level URL will be the failing URL (not the URL of the currently-rendered page).
+      // This is desired behavior. We later use these values to determine whether the request is a top-level navigation or a subresource request.
+      String topWindowUrl = webView.getUrl();
+      String failingUrl = error.getUrl();
 
-        // Cancel request after obtaining top-level URL.
-        // If request is cancelled before obtaining top-level URL, undesired behavior may occur.
-        // Undesired behavior: Return value of WebView.getUrl() may be the current URL instead of the failing URL.
-        // handler.cancel();
+      // Cancel request after obtaining top-level URL.
+      // If request is cancelled before obtaining top-level URL, undesired behavior may occur.
+      // Undesired behavior: Return value of WebView.getUrl() may be the current URL instead of the failing URL.
+      // handler.cancel();
 
-        if (!topWindowUrl.equalsIgnoreCase(failingUrl)) {
-          // If error is not due to top-level navigation, then do not call onReceivedError()
-          Log.w("RNCWebViewManager", "Resource blocked from loading due to SSL error. Blocked URL: "+failingUrl);
-          return;
-        }
+      if (!topWindowUrl.equalsIgnoreCase(failingUrl)) {
+        // If error is not due to top-level navigation, then do not call onReceivedError()
+        Log.w("RNCWebViewManager", "Resource blocked from loading due to SSL error. Blocked URL: "+failingUrl);
+        return;
+      }
 
-        int code = error.getPrimaryError();
-        String description = "";
-        String descriptionPrefix = "SSL error: ";
+      int code = error.getPrimaryError();
+      String description = "";
+      String descriptionPrefix = "SSL error: ";
 
-        // https://developer.android.com/reference/android/net/http/SslError.html
-        switch (code) {
-          case SslError.SSL_DATE_INVALID:
-            description = "The date of the certificate is invalid";
-            break;
-          case SslError.SSL_EXPIRED:
-            description = "The certificate has expired";
-            break;
-          case SslError.SSL_IDMISMATCH:
-            description = "Hostname mismatch";
-            break;
-          case SslError.SSL_INVALID:
-            description = "A generic error occurred";
-            break;
-          case SslError.SSL_NOTYETVALID:
-            description = "The certificate is not yet valid";
-            break;
-          case SslError.SSL_UNTRUSTED:
-            description = "The certificate authority is not trusted";
-            break;
-          default:
-            description = "Unknown SSL Error";
-            break;
-        }
+      // https://developer.android.com/reference/android/net/http/SslError.html
+      switch (code) {
+        case SslError.SSL_DATE_INVALID:
+          description = "The date of the certificate is invalid";
+          break;
+        case SslError.SSL_EXPIRED:
+          description = "The certificate has expired";
+          break;
+        case SslError.SSL_IDMISMATCH:
+          description = "Hostname mismatch";
+          break;
+        case SslError.SSL_INVALID:
+          description = "A generic error occurred";
+          break;
+        case SslError.SSL_NOTYETVALID:
+          description = "The certificate is not yet valid";
+          break;
+        case SslError.SSL_UNTRUSTED:
+          description = "The certificate authority is not trusted";
+          break;
+        default:
+          description = "Unknown SSL Error";
+          break;
+      }
 
-        description = descriptionPrefix + description;
+      description = descriptionPrefix + description;
 
       // ssl error dialog
       ReactContext reactContext = (ReactContext) webView.getContext();
@@ -937,12 +978,12 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
         .setCancelable(false)
         .show();
 
-       this.onReceivedError(
-          webView,
-          code,
-          description,
-          failingUrl
-        );
+      this.onReceivedError(
+        webView,
+        code,
+        description,
+        failingUrl
+      );
     }
 
     /**
@@ -993,9 +1034,9 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
       String failingUrl) {
 
       if (ignoreErrFailedForThisURL != null
-          && failingUrl.equals(ignoreErrFailedForThisURL)
-          && errorCode == -1
-          && description.equals("net::ERR_FAILED")) {
+        && failingUrl.equals(ignoreErrFailedForThisURL)
+        && errorCode == -1
+        && description.equals("net::ERR_FAILED")) {
 
         // This is a workaround for a bug in the WebView.
         // See these chromium issues for more context:
@@ -1044,36 +1085,36 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
     @TargetApi(Build.VERSION_CODES.O)
     @Override
     public boolean onRenderProcessGone(WebView webView, RenderProcessGoneDetail detail) {
-        // WebViewClient.onRenderProcessGone was added in O.
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            return false;
-        }
-        super.onRenderProcessGone(webView, detail);
+      // WebViewClient.onRenderProcessGone was added in O.
+      if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+        return false;
+      }
+      super.onRenderProcessGone(webView, detail);
 
-        if(detail.didCrash()){
-          Log.e("RNCWebViewManager", "The WebView rendering process crashed.");
-        }
-        else{
-          Log.w("RNCWebViewManager", "The WebView rendering process was killed by the system.");
-        }
+      if(detail.didCrash()){
+        Log.e("RNCWebViewManager", "The WebView rendering process crashed.");
+      }
+      else{
+        Log.w("RNCWebViewManager", "The WebView rendering process was killed by the system.");
+      }
 
-        // if webView is null, we cannot return any event
-        // since the view is already dead/disposed
-        // still prevent the app crash by returning true.
-        if(webView == null){
-          return true;
-        }
-
-        WritableMap event = createWebViewEvent(webView, webView.getUrl());
-        event.putBoolean("didCrash", detail.didCrash());
-
-        dispatchEvent(
-          webView,
-          new TopRenderProcessGoneEvent(webView.getId(), event)
-        );
-
-        // returning false would crash the app.
+      // if webView is null, we cannot return any event
+      // since the view is already dead/disposed
+      // still prevent the app crash by returning true.
+      if(webView == null){
         return true;
+      }
+
+      WritableMap event = createWebViewEvent(webView, webView.getUrl());
+      event.putBoolean("didCrash", detail.didCrash());
+
+      dispatchEvent(
+        webView,
+        new TopRenderProcessGoneEvent(webView.getId(), event)
+      );
+
+      // returning false would crash the app.
+      return true;
     }
 
     protected void emitFinishEvent(WebView webView, String url) {
@@ -1106,6 +1147,9 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
     }
   }
 
+  private static WebView webViewPop;
+  private static AlertDialog builder;
+
   protected static class RNCWebChromeClient extends WebChromeClient implements LifecycleEventListener {
     protected static final FrameLayout.LayoutParams FULLSCREEN_LAYOUT_PARAMS = new FrameLayout.LayoutParams(
       LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT, Gravity.CENTER);
@@ -1122,6 +1166,7 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
     protected ReactContext mReactContext;
     protected WebView mWebView;
 
+
     protected View mVideoView;
     protected WebChromeClient.CustomViewCallback mCustomViewCallback;
 
@@ -1135,28 +1180,113 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
     @Override
     public boolean onCreateWindow(WebView view, boolean isDialog, boolean isUserGesture, Message resultMsg) {
 
-//      Message href = view.getHandler().obtainMessage();
-//      view.requestFocusNodeHref(href);
-//      String url = href.getData().getString("url");
 
-      final WebView newWebView = new WebView(view.getContext());
-      newWebView.setWebViewClient(new WebViewClient(){
+//      final WebView newWebView = new WebView(view.getContext());
+//      newWebView.getSettings().setUserAgentString("Mozilla/5.0 (Linux; Android 11; sdk_gphone_x86_arm Build/RSR1.201013.001) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/83.0.4103.106 Mobile Safari/537.36");
+//      final WebView.WebViewTransport transport = (WebView.WebViewTransport) resultMsg.obj;
+//      newWebView.setWebViewClient(new WebViewClient(){
+//        @Override
+//        public void onPageStarted(WebView view, String url, Bitmap favicon) {
+//          // WebView load
+//
+//          if (url.indexOf("http") == 0) {
+//            mWebView.loadUrl(url);
+//            newWebView.stopLoading();
+//            newWebView.setWebViewClient(null);
+//            newWebView.setWebChromeClient(null);
+//            newWebView.destroy();
+//          }
+//          Log.d("★", "");
+//        }
+//      });
+//
+//      transport.setWebView(newWebView);
+//      resultMsg.sendToTarget();
+
+
+        webViewPop = new WebView(view.getContext());
+        webViewPop.setVerticalScrollBarEnabled(false);
+        webViewPop.setHorizontalScrollBarEnabled(false);
+        // webViewPop.setWebViewClient(new RNCWebViewClient());
+
+
+        webViewPop.setWebViewClient(new WebViewClient(){
+
         @Override
         public void onPageStarted(WebView view, String url, Bitmap favicon) {
-          // WebView load
-          mWebView.loadUrl(url);
-          newWebView.stopLoading();
-          newWebView.setWebViewClient(null);
-          newWebView.setWebChromeClient(null);
-          newWebView.destroy();
+          super.onPageStarted(view, url, favicon);
+          Log.d("★", "");
+        }
+        @Override
+        public boolean shouldOverrideUrlLoading(WebView view, String url) {
+          String host = Uri.parse(url).getHost();
+          if (host.equals("www.agoda.com")) {
+            // This is my web site, so do not override; let my WebView load
+            // the page
+            if(webViewPop!=null)          {
+              webViewPop.setVisibility(View.GONE);
+              getRootView().removeView(webViewPop);
+              webViewPop=null;
+            }
+            return false;
+          }
+          if (host.equals("m.facebook.com")) {
+            return false;
+          }
+
+          return false;
+        }
+        @Override
+        public void onReceivedSslError(WebView view, SslErrorHandler handler,
+          SslError error) {
+          Log.d("onReceivedSslError", "onReceivedSslError");
+        }
+      });
+
+      builder = new AlertDialog.Builder(mReactContext.getCurrentActivity(), AlertDialog.THEME_DEVICE_DEFAULT_LIGHT).create();
+
+
+      builder.setTitle("");
+      builder.setView(webViewPop);
+
+      builder.setButton("Close", new DialogInterface.OnClickListener() {
+        @Override
+        public void onClick(DialogInterface dialog, int id) {
+          webViewPop.destroy();
+          dialog.dismiss();
+
 
         }
       });
-      final WebView.WebViewTransport transport = (WebView.WebViewTransport) resultMsg.obj;
-      transport.setWebView(newWebView);
-      resultMsg.sendToTarget();
 
-      return true;
+
+
+      builder.show();
+      builder.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM);
+
+
+
+
+      CookieManager cookieManager = CookieManager.getInstance();
+      cookieManager.setAcceptCookie(true);
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+        cookieManager.setAcceptThirdPartyCookies(webViewPop,true);
+      }
+
+
+
+      webViewPop.getSettings().setJavaScriptEnabled(true);
+      webViewPop.getSettings().setSavePassword(false);
+//      webViewPop.setLayoutParams(new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+//          ViewGroup.LayoutParams.MATCH_PARENT));
+      // getRootView().addView(webViewPop);
+        WebView.WebViewTransport transport = (WebView.WebViewTransport) resultMsg.obj;
+        transport.setWebView(webViewPop);
+        resultMsg.sendToTarget();
+
+        return true;
+
+
     }
 
     @Override
@@ -1451,8 +1581,8 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
 
     public void callInjectedJavaScriptBeforeContentLoaded() {
       if (getSettings().getJavaScriptEnabled() &&
-      injectedJSBeforeContentLoaded != null &&
-      !TextUtils.isEmpty(injectedJSBeforeContentLoaded)) {
+        injectedJSBeforeContentLoaded != null &&
+        !TextUtils.isEmpty(injectedJSBeforeContentLoaded)) {
         evaluateJavascriptWithFallback("(function() {\n" + injectedJSBeforeContentLoaded + ";\n})();");
       }
     }
@@ -1514,16 +1644,16 @@ public class RNCWebViewManager extends SimpleViewManager<WebView> {
 
       if (mOnScrollDispatchHelper.onScrollChanged(x, y)) {
         ScrollEvent event = ScrollEvent.obtain(
-                this.getId(),
-                ScrollEventType.SCROLL,
-                x,
-                y,
-                mOnScrollDispatchHelper.getXFlingVelocity(),
-                mOnScrollDispatchHelper.getYFlingVelocity(),
-                this.computeHorizontalScrollRange(),
-                this.computeVerticalScrollRange(),
-                this.getWidth(),
-                this.getHeight());
+          this.getId(),
+          ScrollEventType.SCROLL,
+          x,
+          y,
+          mOnScrollDispatchHelper.getXFlingVelocity(),
+          mOnScrollDispatchHelper.getYFlingVelocity(),
+          this.computeHorizontalScrollRange(),
+          this.computeVerticalScrollRange(),
+          this.getWidth(),
+          this.getHeight());
 
         dispatchEvent(this, event);
       }
